@@ -1,0 +1,50 @@
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.opendb
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio cache
+.vs/
+.idea/
+*.cache
+
+# .NET
+project.lock.json
+*.nupkg
+*.snupkg
+packages/
+*.DotSettings.user
+.vs/GameMaker-Mobiler/
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Temporary
+*.tmp
+*.bak
+*.swp
+*~
+
+# NuGet
+packages/
+*.nupkg
+
+# Rerun cache
+*.rerun

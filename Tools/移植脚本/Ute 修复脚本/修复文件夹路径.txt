@@ -1,0 +1,5 @@
+1.打开locale里的文件夹
+2.打开文件夹的font.txt、sprite.txt、string.txt文件
+3.删除每一行开头的./
+4.分别保存
+5.如果locale中的文件夹不止一个，就使用同样的操作修改

@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36310.24 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameMaker-Mobiler", "GameMaker-Mobiler\GameMaker-Mobiler.csproj", "{1843D705-FFCA-46C6-A2AB-DD907C5CD092}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1843D705-FFCA-46C6-A2AB-DD907C5CD092}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1843D705-FFCA-46C6-A2AB-DD907C5CD092}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1843D705-FFCA-46C6-A2AB-DD907C5CD092}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1843D705-FFCA-46C6-A2AB-DD907C5CD092}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E31E23AE-4457-4A5B-AD61-2277D24D9253}
+	EndGlobalSection
+EndGlobal

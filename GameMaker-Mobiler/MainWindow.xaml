@@ -1,0 +1,376 @@
+<Window x:Class="GameMaker_Mobiler.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="GameMaker-Mobiler"
+        Background="{DynamicResource WindowBackgroundBrush}"
+        MinHeight="720"
+        MinWidth="1100"
+        Height="860"
+        Width="1320">
+    <Grid x:Name="RootLayout"
+          Margin="22"
+          Background="{DynamicResource WindowBackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="200"/>
+        </Grid.RowDefinitions>
+
+        <!-- Row 0: Header -->
+        <Border Grid.Row="0"
+                Style="{StaticResource HeaderBorderStyle}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Width="52"
+                        Height="52"
+                        Background="{DynamicResource PrimaryBrush}"
+                        CornerRadius="14"
+                        VerticalAlignment="Center"
+                        Margin="0,0,16,0">
+                    <Grid>
+                        <Path Width="25"
+                              Height="25"
+                              Fill="{DynamicResource OnPrimaryBrush}"
+                              Stretch="Uniform"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              Data="M5,7.5 C5,5.57 6.57,4 8.5,4 H15.5 L18,6.5 L20.5,4 H27.5 C29.43,4 31,5.57 31,7.5 V24.5 C31,26.43 29.43,28 27.5,28 H8.5 C6.57,28 5,26.43 5,24.5 Z M10,10 H13 V13 H10 Z M17,10 H20 V13 H17 Z M24,10 H27 V13 H24 Z M10,16 H13 V19 H10 Z M17,16 H20 V19 H17 Z M24,16 H27 V19 H24 Z"/>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Column="1"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="GameMaker-Mobiler"
+                               FontSize="25"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <StackPanel Orientation="Horizontal"
+                            Margin="0,4,0,0">
+                        <TextBlock Text="ANDROID BUILD WORKSPACE"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource PrimaryBrush}"/>
+                        <TextBlock Text="  ·  "
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                        <TextBlock Text="GameMaker 游戏移植工具"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <Border Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrushTheme}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="10,7"
+                            Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="7"
+                                     Height="7"
+                                     Fill="{DynamicResource SuccessBrush}"
+                                     VerticalAlignment="Center"
+                                     Margin="0,0,7,0"/>
+                            <TextBlock Text="工具链就绪"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </Border>
+                    <Button x:Name="ThemeToggleButton"
+                            Style="{StaticResource ToolbarButtonStyle}"
+                            Content="切换深色"
+                            Click="ThemeToggleButton_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Row 1: Main content - two columns -->
+        <Grid Grid.Row="1" Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="16"/>
+                <ColumnDefinition Width="1.2*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left column: Game source -->
+            <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}">
+                <StackPanel>
+                    <TextBlock Text="游戏源文件" Style="{StaticResource SectionTitleStyle}"/>
+                    <TextBlock Text="支持拖拽目录或 data.win 文件，当前仅校验 data.win。"
+                               Margin="0,10,0,0" Style="{StaticResource CaptionStyle}"/>
+
+                    <Border x:Name="SourceDropBorder"
+                            Margin="0,14,0,0"
+                            Padding="12"
+                            CornerRadius="8"
+                            BorderThickness="1"
+                            BorderBrush="{DynamicResource BorderBrushTheme}"
+                            Background="{DynamicResource SurfaceAltBrush}"
+                            AllowDrop="True"
+                            DragEnter="SourceDropBorder_DragEnter"
+                            DragOver="SourceDropBorder_DragOver"
+                            DragLeave="SourceDropBorder_DragLeave"
+                            Drop="SourceDropBorder_Drop">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBox x:Name="SourcePathTextBox"
+                                     Grid.Row="0"
+                                     Grid.Column="0"
+                                     Margin="0,0,12,0"
+                                     IsReadOnly="True"
+                                     Text="未选择目录"/>
+
+                            <Button x:Name="BrowseDataWinButton"
+                                    Grid.Row="0"
+                                    Grid.Column="1"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Content="浏览 data.win"
+                                    Click="BrowseDataWinButton_Click"/>
+
+                            <TextBlock Grid.Row="1"
+                                       Grid.ColumnSpan="2"
+                                       Margin="0,10,0,0"
+                                       Style="{StaticResource CaptionStyle}"
+                                       Text="拖拽提示：可拖入包含 data.win 的文件夹，或直接拖入 data.win。"/>
+
+                            <StackPanel Grid.Row="2"
+                                        Grid.ColumnSpan="2"
+                                        Margin="0,12,0,0">
+                                <TextBlock x:Name="DataWinPathTextBlock"
+                                           Text="data.win 路径：未检测"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBlock x:Name="GameVersionTextBlock"
+                                           Margin="0,6,0,0"
+                                           Text="版本：未检测"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"
+                                           FontWeight="SemiBold"/>
+                                <TextBlock x:Name="UteStatusTextBlock"
+                                           Margin="0,4,0,0"
+                                           Text="UTE 模板状态：等待检测..."
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           FontSize="12"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!-- Right column: Porting config + APK settings -->
+            <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="580">
+                <StackPanel>
+                    <TextBlock Text="移植配置" Style="{StaticResource SectionTitleStyle}"/>
+                    <TextBlock Text="主开关启用后可展开键盘子选项，支持测试 data.win 修改。"
+                               Margin="0,10,0,0" Style="{StaticResource CaptionStyle}"/>
+
+                    <CheckBox x:Name="AddMobileKeyCheckBox"
+                              Content="植入游戏键盘"
+                              Margin="0,14,0,8"
+                              Checked="AddMobileKeyCheckBox_Checked"
+                              Unchecked="AddMobileKeyCheckBox_Unchecked"/>
+
+                    <Border x:Name="SubOptionsContainer"
+                            Height="0"
+                            Opacity="0"
+                            ClipToBounds="True"
+                            Background="{DynamicResource SurfaceAltBrush}"
+                            BorderBrush="{DynamicResource BorderBrushTheme}"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12"
+                            Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="键盘子选项"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                       Margin="0,0,0,6"/>
+                            <StackPanel IsEnabled="{Binding IsChecked, ElementName=AddMobileKeyCheckBox}">
+                                <CheckBox x:Name="MobileF2CheckBox"
+                                          Content="重开键 (mobile_f2)"
+                                          IsChecked="True"
+                                          Margin="0,0,0,8"/>
+                                <CheckBox x:Name="MobileHealCheckBox"
+                                          Content="回血键 (mobile_heal)"
+                                          Margin="0,0,0,8"/>
+                                <CheckBox x:Name="MobileCnCheckBox"
+                                          Content="中文化 (mobile_cn)"
+                                          IsChecked="True"
+                                          Margin="0,0,0,8"/>
+                                <CheckBox x:Name="AndroidKeyboardCheckBox"
+                                          Content="系统键盘 (Android_System_Keyboard)"
+                                          Margin="0,0,0,4"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Separator Margin="0,16,0,12"/>
+
+                    <!-- APK Settings -->
+                    <TextBlock Text="APK 打包设置"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                    <StackPanel Margin="0,10,0,0">
+                        <TextBlock Text="应用名称" Style="{StaticResource FieldLabelStyle}"/>
+                        <TextBox x:Name="AppNameTextBox"
+                                 Text="MyGame"
+                                 Style="{StaticResource FieldInputStyle}"/>
+
+                        <TextBlock Text="包名 (Package Name)"
+                                   Style="{StaticResource FieldLabelStyle}"
+                                   Margin="0,10,0,0"/>
+                        <TextBox x:Name="PackageNameTextBox"
+                                 Text="com.example.mygame"
+                                 Style="{StaticResource FieldInputStyle}"/>
+
+                        <TextBlock Text="版本号"
+                                   Style="{StaticResource FieldLabelStyle}"
+                                   Margin="0,10,0,0"/>
+                        <TextBox x:Name="VersionTextBox"
+                                 Text="1.0.0"
+                                 Style="{StaticResource FieldInputStyle}"/>
+
+                        <TextBlock Text="应用图标"
+                                   Style="{StaticResource FieldLabelStyle}"
+                                   Margin="0,10,0,0"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="IconPathTextBox"
+                                     Grid.Column="0"
+                                     IsReadOnly="True"
+                                     Text="未选择图标（使用默认）"
+                                     Style="{StaticResource FieldInputStyle}"/>
+                            <Button x:Name="BrowseIconButton"
+                                    Grid.Column="1"
+                                    Content="浏览"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Click="BrowseIconButton_Click"
+                                    Margin="8,0,0,0"/>
+                        </Grid>
+                        <TextBlock x:Name="IconPreviewTextBlock"
+                                   Text=""
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="0,6,0,0"/>
+
+                        <Button x:Name="ResetButton"
+                                Content="重置配置"
+                                Height="36"
+                                Margin="0,12,0,0"
+                                Click="ResetButton_Click"
+                                Style="{StaticResource SecondaryButtonStyle}"/>
+                    </StackPanel>
+                </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <!-- Row 2: Action bar -->
+        <Border Grid.Row="2"
+                Style="{StaticResource CardBorderStyle}"
+                Margin="0,16,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="就绪"
+                               x:Name="StatusTextBlock"
+                               VerticalAlignment="Center"
+                               FontSize="13"
+                               Foreground="{DynamicResource TextSecondaryBrush}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Grid.Column="1">
+                    <Button x:Name="StartPortingButton"
+                            Content="▶ 开始移植"
+                            Width="150"
+                            Height="40"
+                            FontSize="14"
+                            FontWeight="SemiBold"
+                            Click="StartPortingButton_Click"
+                            Style="{StaticResource PrimaryActionButtonStyle}"/>
+                    <Button x:Name="CancelButton"
+                            Content="取消"
+                            Width="150"
+                            Height="40"
+                            Margin="10,0,0,0"
+                            Click="CancelButton_Click"
+                            IsEnabled="False"
+                            Style="{StaticResource SecondaryButtonStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Row 3: Log panel -->
+        <Border Grid.Row="3" Style="{StaticResource CardBorderStyle}" Margin="0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="活动日志" Style="{StaticResource SectionTitleStyle}"/>
+                        <Border Background="{DynamicResource SurfaceAltBrush}"
+                                CornerRadius="5" Padding="7,3" Margin="9,0,0,0">
+                            <TextBlock Text="实时"
+                                       FontSize="10"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource AccentBrush}"/>
+                        </Border>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBlock Text="构建进度"
+                                   VerticalAlignment="Center"
+                                   Style="{StaticResource CaptionStyle}"/>
+                        <ProgressBar x:Name="BuildProgressBar"
+                                     Width="130"
+                                     Minimum="0"
+                                     Maximum="100"
+                                     Value="0"
+                                     Margin="10,0,10,0"/>
+                        <TextBlock x:Name="ProgressTextBlock"
+                                   Text="0%"
+                                   VerticalAlignment="Center"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource PrimaryBrush}"/>
+                    </StackPanel>
+                </Grid>
+
+                <ListBox Grid.Row="2"
+                         x:Name="LogListBox"
+                         HorizontalContentAlignment="Stretch"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
