@@ -23,6 +23,7 @@ namespace GameMaker_Mobiler
         private GameInfo? _currentGameInfo;
         private CancellationTokenSource? _portingCts;
         private string? _selectedIconPath;
+        private string? _selectedSplashPath;
         private string? _lastOutputDir;
 
         public ObservableCollection<string> Logs { get; } = [];
@@ -316,6 +317,24 @@ namespace GameMaker_Mobiler
             }
         }
 
+        private void BrowseSplashButton_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new OpenFileDialog
+            {
+                Title = "选择加载图片",
+                Filter = "PNG 图片 (*.png)|*.png|所有文件|*.*",
+                CheckFileExists = true
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                _selectedSplashPath = dialog.FileName;
+                SplashPathTextBox.Text = dialog.FileName;
+                var fi = new FileInfo(dialog.FileName);
+                SplashPreviewTextBlock.Text = $"大小: {fi.Length / 1024} KB";
+            }
+        }
+
         private async void StartPortingButton_Click(object sender, RoutedEventArgs e)
         {
             if (_currentGameInfo is null)
@@ -395,22 +414,40 @@ namespace GameMaker_Mobiler
 
             var progress = new Progress<(int Percent, string Message)>(p =>
             {
-                Dispatcher.Invoke(() =>
+                void ApplyProgress()
                 {
-                    BuildProgressBar.Value = p.Percent;
+                    BuildProgressBar.Value = Math.Clamp(p.Percent / 100d, 0d, 1d);
                     ProgressTextBlock.Text = $"{p.Percent}%";
                     StatusTextBlock.Text = p.Message;
-                });
+                }
+
+                if (Dispatcher.CheckAccess())
+                {
+                    ApplyProgress();
+                }
+                else
+                {
+                    _ = Dispatcher.InvokeAsync(ApplyProgress);
+                }
             });
+
+            string? modifiedDataWinPath = null;
 
             try
             {
                 AddLog("===== 开始移植流程 =====");
 
                 AddLog("步骤 1: 修改 data.win (UTMT CLI)...");
+                modifiedDataWinPath = Path.Combine(
+                    Path.GetTempPath(),
+                    $"gmm_port_{Guid.NewGuid():N}.game.droid");
                 await _utmtService
-                    .ModifyDataWin(_currentGameInfo.DataWinPath, options, "game.droid", _portingCts.Token);
-                AddLog("data.win 修改完成，已保存为 game.droid。");
+                    .ModifyDataWinToPath(
+                        _currentGameInfo.DataWinPath,
+                        options,
+                        modifiedDataWinPath,
+                        _portingCts.Token);
+                AddLog("data.win 修改完成，已写入临时目录。");
 
                 AddLog("步骤 2: 选择 APK 模板...");
                 var templateApk = _apkBuilder.FindTemplateApk(_currentGameInfo.Version);
@@ -420,12 +457,13 @@ namespace GameMaker_Mobiler
                 await _apkBuilder.BuildApkAsync(
                     templateApk,
                     _currentGameInfo.SourceDirectory,
-                    _currentGameInfo.DataWinPath,
+                    modifiedDataWinPath,
                     outputPath,
                     appName,
                     packageName,
                     version,
                     _selectedIconPath,
+                    _selectedSplashPath,
                     _currentGameInfo.IsUteTemplate,
                     progress,
                     _portingCts.Token);
@@ -463,6 +501,19 @@ namespace GameMaker_Mobiler
             }
             finally
             {
+                try
+                {
+                    if (!string.IsNullOrEmpty(modifiedDataWinPath) &&
+                        File.Exists(modifiedDataWinPath))
+                    {
+                        File.Delete(modifiedDataWinPath);
+                    }
+                }
+                catch
+                {
+                    // Ignore temporary data cleanup errors.
+                }
+
                 await Dispatcher.InvokeAsync(() =>
                 {
                     StartPortingButton.IsEnabled = true;
@@ -476,6 +527,7 @@ namespace GameMaker_Mobiler
         {
             _currentGameInfo = null;
             _selectedIconPath = null;
+            _selectedSplashPath = null;
             _lastOutputDir = null;
 
             SourcePathTextBox.Text = "未选择目录";
@@ -489,6 +541,8 @@ namespace GameMaker_Mobiler
             VersionTextBox.Text = "1.0.0";
             IconPathTextBox.Text = "未选择图标（使用默认）";
             IconPreviewTextBlock.Text = "";
+            SplashPathTextBox.Text = "未选择加载图片（使用默认）";
+            SplashPreviewTextBlock.Text = "";
 
             AddMobileKeyCheckBox.IsChecked = false;
             MobileF2CheckBox.IsChecked = true;

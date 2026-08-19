@@ -9,6 +9,7 @@
     <Color x:Key="ColorBorder">#FFD9E2EC</Color>
     <Color x:Key="ColorPrimary">#FF2563EB</Color>
     <Color x:Key="ColorPrimaryHover">#FF1D4ED8</Color>
+    <Color x:Key="ColorSecondaryHover">#FFE2E8F0</Color>
     <Color x:Key="ColorAccent">#FF0F766E</Color>
     <Color x:Key="ColorSuccess">#FF16A34A</Color>
     <Color x:Key="ColorWarning">#FFF59E0B</Color>
@@ -20,6 +21,7 @@
     <Color x:Key="ColorScrollBarTrack">#FFE8EDF3</Color>
     <Color x:Key="ColorScrollBarThumb">#FFB6C2D0</Color>
     <Color x:Key="ColorScrollBarThumbHover">#FF8D9CAF</Color>
+    <Color x:Key="ColorLogBackground">#FF1F2937</Color>
 
     <SolidColorBrush x:Key="WindowBackgroundBrush" Color="{StaticResource ColorBackground}" />
     <LinearGradientBrush x:Key="HeaderBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
@@ -32,6 +34,7 @@
     <SolidColorBrush x:Key="BorderBrushTheme" Color="{StaticResource ColorBorder}" />
     <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource ColorPrimary}" />
     <SolidColorBrush x:Key="PrimaryHoverBrush" Color="{StaticResource ColorPrimaryHover}" />
+    <SolidColorBrush x:Key="SecondaryHoverBrush" Color="{StaticResource ColorSecondaryHover}" />
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource ColorAccent}" />
     <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource ColorSuccess}" />
     <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource ColorWarning}" />
@@ -43,4 +46,5 @@
     <SolidColorBrush x:Key="ScrollBarTrackBrush" Color="{StaticResource ColorScrollBarTrack}" />
     <SolidColorBrush x:Key="ScrollBarThumbBrush" Color="{StaticResource ColorScrollBarThumb}" />
     <SolidColorBrush x:Key="ScrollBarThumbHoverBrush" Color="{StaticResource ColorScrollBarThumbHover}" />
+    <SolidColorBrush x:Key="LogBackgroundBrush" Color="{StaticResource ColorLogBackground}" />
 </ResourceDictionary>

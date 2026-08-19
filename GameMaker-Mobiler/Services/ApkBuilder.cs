@@ -125,6 +125,7 @@ public class ApkBuilder
         string packageName,
         string version,
         string? iconPath,
+        string? splashPath,
         bool isUteTemplate,
         IProgress<(int Percent, string Message)> progress,
         CancellationToken cancellationToken)
@@ -157,8 +158,14 @@ public class ApkBuilder
             ReplaceApkIcon(unsignedApk, iconPath);
         }
 
+        if (!string.IsNullOrEmpty(splashPath) && File.Exists(splashPath))
+        {
+            progress.Report((55, "替换加载图片..."));
+            ReplaceApkSplashScreen(unsignedApk, splashPath);
+        }
+
         progress.Report((60, "APK 对齐优化..."));
-        ZipAlignApk(unsignedApk);
+        await ZipAlignApkAsync(unsignedApk, cancellationToken);
 
         progress.Report((70, "签名 APK..."));
         await SignApkAsync(unsignedApk, cancellationToken);
@@ -203,6 +210,7 @@ public class ApkBuilder
 
         CreateApktoolInputApk(templateApkPath, workingApk);
 
+        Log($"Apktool 解包: {Path.GetFileName(workingApk)}");
         await RunJavaToolAsync(
             javaExe,
             apktoolJar,
@@ -220,9 +228,8 @@ public class ApkBuilder
         var assetsDirectory = Path.Combine(decodedDirectory, "assets");
         Directory.CreateDirectory(assetsDirectory);
 
-        var gameDroidPath = Path.Combine(gameDir, "game.droid");
         File.Copy(
-            File.Exists(gameDroidPath) ? gameDroidPath : dataWinPath,
+            dataWinPath,
             Path.Combine(assetsDirectory, "game.droid"),
             overwrite: true);
 
@@ -234,11 +241,13 @@ public class ApkBuilder
             RemoveGmuConsoleDll(assetsDirectory);
         }
 
+        Log("Apktool 回编译 APK...");
         await RunJavaToolAsync(
             javaExe,
             apktoolJar,
             new[] { "b", "-f", "--no-crunch", "-o", outputApkPath, decodedDirectory },
             cancellationToken);
+        Log("Apktool 构建完成。");
     }
 
     private static void CreateApktoolInputApk(string sourceApkPath, string destinationApkPath)
@@ -385,22 +394,114 @@ public class ApkBuilder
             psi.ArgumentList.Add(argument);
         }
 
-        using var process = Process.Start(psi)
-            ?? throw new InvalidOperationException($"无法启动 Java 工具: {jarPath}");
-        var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-        var stdout = await stdoutTask;
-        var stderr = await stderrTask;
+        var commandLine = BuildDisplayCommand(javaExe, jarPath, arguments);
+        Log($"启动外部工具: {commandLine}");
 
-        if (process.ExitCode != 0)
+        using var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
+        var exitTcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stdoutClosedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stderrClosedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stdout = new StringBuilder();
+        var stderr = new StringBuilder();
+
+        process.OutputDataReceived += (_, e) =>
+        {
+            if (e.Data is null)
+            {
+                stdoutClosedTcs.TrySetResult();
+                return;
+            }
+
+            if (e.Data.Length == 0)
+            {
+                return;
+            }
+
+            stdout.AppendLine(e.Data);
+            Log(e.Data);
+        };
+        process.ErrorDataReceived += (_, e) =>
+        {
+            if (e.Data is null)
+            {
+                stderrClosedTcs.TrySetResult();
+                return;
+            }
+
+            if (e.Data.Length == 0)
+            {
+                return;
+            }
+
+            stderr.AppendLine(e.Data);
+            Log(e.Data, true);
+        };
+        process.Exited += (_, _) => exitTcs.TrySetResult(process.ExitCode);
+
+        if (!process.Start())
+        {
+            throw new InvalidOperationException($"无法启动 Java 工具: {jarPath}");
+        }
+
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+
+        using var registration = cancellationToken.Register(() =>
+        {
+            try
+            {
+                if (!process.HasExited)
+                {
+                    Log("收到取消请求，正在终止外部工具...", true);
+                    process.Kill(entireProcessTree: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"终止外部工具失败: {ex.Message}", true);
+            }
+        });
+
+        try
+        {
+            await Task.WhenAll(
+                exitTcs.Task,
+                stdoutClosedTcs.Task,
+                stderrClosedTcs.Task).WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+
+        var exitCode = await exitTcs.Task;
+        if (exitCode != 0)
         {
             throw new InvalidOperationException(
-                $"Java 工具执行失败 ({process.ExitCode}): {jarPath}\n{stdout}\n{stderr}");
+                $"Java 工具执行失败 ({exitCode}): {commandLine}\n{stdout}\n{stderr}");
         }
+
+        Log($"外部工具完成，退出码: {exitCode}");
     }
 
-    private async Task InjectGameResourcesAsync(
+    private static string BuildDisplayCommand(
+        string javaExe,
+        string jarPath,
+        IEnumerable<string> arguments)
+    {
+        static string Quote(string value) =>
+            value.Contains(' ', StringComparison.Ordinal) ||
+            value.Contains('\t', StringComparison.Ordinal)
+                ? $"\"{value.Replace("\"", "\\\"", StringComparison.Ordinal)}\""
+                : value;
+
+        return string.Join(
+            " ",
+            new[] { Quote(javaExe), "-jar", Quote(jarPath) }
+                .Concat(arguments.Select(Quote)));
+    }
+
+    private Task InjectGameResourcesAsync(
         string apkPath,
         string gameDir,
         string dataWinPath,
@@ -450,6 +551,8 @@ public class ApkBuilder
         {
             try { if (Directory.Exists(tempExtractDir)) Directory.Delete(tempExtractDir, recursive: true); } catch { }
         }
+
+        return Task.CompletedTask;
     }
 
     private void ExtractArchiveAllowingDuplicateEntries(string apkPath, string destinationDirectory)
@@ -491,7 +594,11 @@ public class ApkBuilder
 
     private void CopyGameResources(string gameDir, string assetsDir, bool isUteTemplate)
     {
-        var skipFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "data.win" };
+        var skipFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "data.win",
+            "game.droid"
+        };
 
         foreach (var file in Directory.GetFiles(gameDir))
         {
@@ -1788,8 +1895,7 @@ public class ApkBuilder
                     using var newStream = newEntry.Open();
 
                 if (entry.FullName.EndsWith("ic_launcher.png", StringComparison.Ordinal) ||
-                    entry.FullName.EndsWith("icon.png", StringComparison.Ordinal) ||
-                    entry.FullName.EndsWith("ic_cdv_splashscreen.png", StringComparison.Ordinal))
+                    entry.FullName.EndsWith("icon.png", StringComparison.Ordinal))
                 {
                     newStream.Write(iconData, 0, iconData.Length);
                 }
@@ -1806,7 +1912,61 @@ public class ApkBuilder
         Log("图标替换完成");
     }
 
-    private void ZipAlignApk(string apkPath)
+    private void ReplaceApkSplashScreen(string apkPath, string splashPath)
+    {
+        Log($"替换加载图片: {splashPath}");
+        var entriesToSkip = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "META-INF/"
+        };
+
+        var tempFile = apkPath + ".tmp";
+        var splashData = File.ReadAllBytes(splashPath);
+        var replaced = false;
+
+        using (var zip = ZipFile.OpenRead(apkPath))
+        using (var output = ZipFile.Open(tempFile, ZipArchiveMode.Create))
+        {
+            foreach (var entry in zip.Entries)
+            {
+                if (entriesToSkip.Any(e => entry.FullName.StartsWith(e, StringComparison.Ordinal)))
+                {
+                    continue;
+                }
+
+                var newEntry = output.CreateEntry(
+                    entry.FullName,
+                    GetApkCompressionLevel(entry.FullName));
+                using var newStream = newEntry.Open();
+
+                if (entry.FullName.EndsWith(
+                        "ic_cdv_splashscreen.png",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    newStream.Write(splashData, 0, splashData.Length);
+                    replaced = true;
+                }
+                else
+                {
+                    using var stream = entry.Open();
+                    stream.CopyTo(newStream);
+                }
+            }
+        }
+
+        if (!replaced)
+        {
+            File.Delete(tempFile);
+            Log("APK 中未找到 ic_cdv_splashscreen.png，跳过加载图片替换", true);
+            return;
+        }
+
+        File.Delete(apkPath);
+        File.Move(tempFile, apkPath);
+        Log("加载图片替换完成");
+    }
+
+    private async Task ZipAlignApkAsync(string apkPath, CancellationToken cancellationToken)
     {
         var zipalignExe = Path.Combine(
             _baseDir,
@@ -1835,9 +1995,27 @@ public class ApkBuilder
         using var process = Process.Start(psi);
         if (process == null) throw new InvalidOperationException("无法启动 zipalign");
 
-        var stdout = process.StandardOutput.ReadToEnd();
-        var stderr = process.StandardError.ReadToEnd();
-        process.WaitForExit();
+        var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
+
+        using var registration = cancellationToken.Register(() =>
+        {
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+            }
+            catch
+            {
+                // Ignore kill errors while cancelling.
+            }
+        });
+
+        await process.WaitForExitAsync(cancellationToken);
+        var stdout = await stdoutTask;
+        var stderr = await stderrTask;
 
         if (process.ExitCode != 0)
         {

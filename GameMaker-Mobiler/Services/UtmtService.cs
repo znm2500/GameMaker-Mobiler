@@ -35,6 +35,30 @@ public sealed class UtmtService
 
     public async Task ModifyDataWin(string dataWinPath, bool[] options, string? outputFileName, CancellationToken cancellationToken)
     {
+        var gameDir = Path.GetDirectoryName(dataWinPath) ?? string.Empty;
+        var outputPath = string.IsNullOrEmpty(outputFileName)
+            ? dataWinPath
+            : Path.Combine(gameDir, outputFileName);
+
+        await ModifyDataWinToPath(dataWinPath, options, outputPath, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public Task ModifyDataWinToPath(
+        string dataWinPath,
+        bool[] options,
+        string outputPath,
+        CancellationToken cancellationToken)
+    {
+        return ModifyDataWinToPathCore(dataWinPath, options, outputPath, cancellationToken);
+    }
+
+    private async Task ModifyDataWinToPathCore(
+        string dataWinPath,
+        bool[] options,
+        string finalOutputPath,
+        CancellationToken cancellationToken)
+    {
         if (!File.Exists(dataWinPath))
         {
             throw new FileNotFoundException("data.win not found", dataWinPath);
@@ -60,10 +84,6 @@ public sealed class UtmtService
         var gameDir = Path.GetDirectoryName(dataWinPath) ?? string.Empty;
         var isUte = DetectUteTemplate(gameDir);
 
-        // 确定输出路径
-        var finalOutputPath = string.IsNullOrEmpty(outputFileName)
-            ? dataWinPath
-            : Path.Combine(gameDir, outputFileName);
         var workingDirectory = Path.Combine(Path.GetTempPath(), $"gmm_utmt_{Guid.NewGuid():N}");
         Directory.CreateDirectory(workingDirectory);
         var workingOutputPath = Path.Combine(workingDirectory, Path.GetFileName(finalOutputPath));
@@ -135,6 +155,7 @@ public sealed class UtmtService
 
             if (!string.Equals(workingOutputPath, finalOutputPath, StringComparison.OrdinalIgnoreCase))
             {
+                Directory.CreateDirectory(Path.GetDirectoryName(finalOutputPath)!);
                 File.Copy(workingOutputPath, finalOutputPath, overwrite: true);
             }
 
