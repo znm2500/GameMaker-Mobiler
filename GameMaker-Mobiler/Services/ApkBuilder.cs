@@ -222,6 +222,8 @@ public class ApkBuilder
         PatchDecodedManifest(manifestPath, originalPackages, packageName, version, appName);
         PatchDecodedPackageNames(decodedDirectory, originalPackages, packageName);
 
+        PatchApktoolYaml(decodedDirectory, packageName, version);
+
         var assetsDirectory = Path.Combine(decodedDirectory, "assets");
         Directory.CreateDirectory(assetsDirectory);
 
@@ -327,7 +329,35 @@ public class ApkBuilder
 
     private static string MatchEvaluatorEscapeReplacement(string value)
     {
-        return value.Replace("$", "$$", StringComparison.Ordinal);
+        return value.Replace("$", "$", StringComparison.Ordinal);
+    }
+
+    private static void PatchApktoolYaml(string decodedDirectory, string packageName, string version)
+    {
+        var yamlPath = Path.Combine(decodedDirectory, "apktool.yml");
+        if (!File.Exists(yamlPath))
+        {
+            return;
+        }
+
+        var yaml = File.ReadAllText(yamlPath, Encoding.UTF8);
+
+        yaml = Regex.Replace(
+            yaml,
+            @"(versionName:\s*)(['""'][^'""']*['""']|[^\r\n,]+)",
+            $"$1'{MatchEvaluatorEscapeReplacement(version)}'",
+            RegexOptions.CultureInvariant);
+
+        if (Regex.IsMatch(yaml, @"renameManifestPackage:\s*", RegexOptions.CultureInvariant))
+        {
+            yaml = Regex.Replace(
+                yaml,
+                @"(renameManifestPackage:\s*)(null|['""'][^'""']*['""']|[^\r\n,]+)",
+                $"$1'{MatchEvaluatorEscapeReplacement(packageName)}'",
+                RegexOptions.CultureInvariant);
+        }
+
+        File.WriteAllText(yamlPath, yaml, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
     }
 
     private static void PatchDecodedPackageNames(

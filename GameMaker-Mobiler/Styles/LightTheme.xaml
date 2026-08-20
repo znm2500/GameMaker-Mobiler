@@ -13,6 +13,7 @@
     <Color x:Key="ColorAccent">#FF0F766E</Color>
     <Color x:Key="ColorSuccess">#FF16A34A</Color>
     <Color x:Key="ColorWarning">#FFF59E0B</Color>
+    <Color x:Key="ColorError">#FFDC2626</Color>
     <Color x:Key="ColorTextPrimary">#FF172033</Color>
     <Color x:Key="ColorTextSecondary">#FF64748B</Color>
     <Color x:Key="ColorTextMuted">#FF94A3B8</Color>
@@ -38,6 +39,7 @@
     <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource ColorAccent}" />
     <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource ColorSuccess}" />
     <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource ColorWarning}" />
+    <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ColorError}" />
     <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource ColorTextPrimary}" />
     <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource ColorTextSecondary}" />
     <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource ColorTextMuted}" />

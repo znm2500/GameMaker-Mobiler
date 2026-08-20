@@ -232,21 +232,38 @@
                             <TextBlock Text="应用名称" Style="{StaticResource FieldLabelStyle}"/>
                             <TextBox x:Name="AppNameTextBox"
                                  Text="MyGame"
-                                 Style="{StaticResource FieldInputStyle}"/>
-
+                                 Style="{StaticResource FieldInputStyle}"
+                                 TextChanged="ApkInput_TextChanged"/>
+                            <TextBlock x:Name="AppNameHintTextBlock"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="0,4,0,0"
+                                   Text="合法字符：中英文、数字、空格、下划线、连字符。禁止 ' 、&quot; 、&lt; 、&gt; 、&amp;。"/>
                             <TextBlock Text="包名 (Package Name)"
                                    Style="{StaticResource FieldLabelStyle}"
                                    Margin="0,10,0,0"/>
                             <TextBox x:Name="PackageNameTextBox"
                                  Text="com.example.mygame"
-                                 Style="{StaticResource FieldInputStyle}"/>
+                                 Style="{StaticResource FieldInputStyle}"
+                                 TextChanged="ApkInput_TextChanged"/>
+                            <TextBlock x:Name="PackageNameHintTextBlock"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="0,4,0,0"
+                                   Text="格式：字母开头，仅字母 / 数字 / 下划线，以 . 分段，至少两段。例：com.example.mygame"/>
 
                             <TextBlock Text="版本号"
                                    Style="{StaticResource FieldLabelStyle}"
                                    Margin="0,10,0,0"/>
                             <TextBox x:Name="VersionTextBox"
                                  Text="1.0.0"
-                                 Style="{StaticResource FieldInputStyle}"/>
+                                 Style="{StaticResource FieldInputStyle}"
+                                 TextChanged="ApkInput_TextChanged"/>
+                            <TextBlock x:Name="VersionHintTextBlock"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="0,4,0,0"
+                                   Text="显示版本（versionName），任意字符串，建议 x.y.z。禁止控制字符与路径非法符号。"/>
 
                             <TextBlock Text="应用图标"
                                    Style="{StaticResource FieldLabelStyle}"

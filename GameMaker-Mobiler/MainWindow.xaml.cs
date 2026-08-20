@@ -6,6 +6,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media.Animation;
 using System.Windows.Media;
 using System.Text.RegularExpressions;
@@ -43,6 +45,8 @@ namespace GameMaker_Mobiler
             Logs.CollectionChanged += OnLogsCollectionChanged;
             Logs.Add("应用启动完成。当前主题：浅色。");
             Logs.Add("请选择或拖拽 data.win 开始移植。");
+
+            UpdateStartPortingAvailability();
         }
 
         private void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
@@ -196,8 +200,8 @@ namespace GameMaker_Mobiler
                     : "版本：未知";
 
                 UteStatusTextBlock.Text = isUte
-                    ? "✓ UTE 模板游戏（将自动执行修复脚本）"
-                    : "✗ 非 UTE 模板游戏";
+                    ? "✓ 旧 UTE 模板游戏（将自动执行修复脚本）"
+                    : "✗ 非旧 UTE 模板游戏";
                 UteStatusTextBlock.Foreground = isUte
                     ? (Brush)Application.Current.FindResource("SuccessBrush")
                     : (Brush)Application.Current.FindResource("TextMutedBrush");
@@ -222,8 +226,138 @@ namespace GameMaker_Mobiler
             }
         }
 
+        private static readonly Regex PackageNameRegex = new(
+            @"^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+        /// <summary>
+        /// 前端对应用名称做字符限制：禁止单引号、双引号、XML 特殊字符与控制字符。
+        /// 这些字符会导致 aapt2 编译 strings.xml 失败（例如 "unescaped apostrophe"）。
+        /// </summary>
+        private static readonly Regex AppNameAllowedRegex = new(
+            @"^[^'\""<>&\x00-\x1F\x7F]{1,64}$",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+        private static readonly char[] VersionInvalidChars = new[]
+        {
+            '<', '>', ':', '"', '/', '\\', '|', '?', '*'
+        };
+
+        private (bool AppNameValid, bool PackageValid, bool VersionValid, string Status) _apkInputValidation;
+
+        private void ApkInput_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (StartPortingButton is null)
+            {
+                return;
+            }
+
+            ValidateApkInputs();
+            UpdateStartPortingAvailability();
+        }
+
+        /// <summary>
+        /// 校验「应用名称 / 包名 / 版本号」三项前端输入。
+        /// 通过提示文字变红 / 变灰实时提示。
+        /// </summary>
+        private void ValidateApkInputs()
+        {
+            if (AppNameHintTextBlock is null || PackageNameHintTextBlock is null || VersionHintTextBlock is null)
+            {
+                return;
+            }
+
+            var validBrush = (Brush)FindResource("TextMutedBrush");
+            var errorBrush = (Brush?)TryFindResource("ErrorBrush") ?? Brushes.IndianRed;
+
+            string status;
+
+            // 1) 应用名称
+            var appName = AppNameTextBox.Text;
+            bool appNameValid;
+            if (string.IsNullOrWhiteSpace(appName))
+            {
+                appNameValid = false;
+                AppNameHintTextBlock.Text = "应用名称不能为空。";
+            }
+            else if (!AppNameAllowedRegex.IsMatch(appName))
+            {
+                appNameValid = false;
+                AppNameHintTextBlock.Text =
+                    "非法字符：禁止包含 ' (单引号)、\" (双引号)、< > & 以及控制字符；长度 1~64。";
+            }
+            else
+            {
+                appNameValid = true;
+                AppNameHintTextBlock.Text =
+                    "合法字符：中英文、数字、空格、下划线、连字符。禁止 ' 、\" 、< 、> 、&。";
+            }
+          
+            AppNameHintTextBlock.Foreground = appNameValid ? validBrush : errorBrush;
+            ToolTipService.SetToolTip(AppNameTextBox, appNameValid ? null : AppNameHintTextBlock.Text);
+
+            // 2) 包名
+            var packageName = PackageNameTextBox.Text.Trim();
+            bool packageValid;
+            if (string.IsNullOrWhiteSpace(packageName))
+            {
+                packageValid = false;
+                PackageNameHintTextBlock.Text = "包名不能为空。";
+            }
+            else if (!PackageNameRegex.IsMatch(packageName))
+            {
+                packageValid = false;
+                PackageNameHintTextBlock.Text =
+                    "格式错误：字母开头，仅字母 / 数字 / 下划线，用 . 分段且至少两段。例：com.example.mygame";
+            }
+            else
+            {
+                packageValid = true;
+                PackageNameHintTextBlock.Text =
+                    "格式：字母开头，仅字母 / 数字 / 下划线，以 . 分段，至少两段。例：com.example.mygame";
+            }
+            PackageNameHintTextBlock.Foreground = packageValid ? validBrush : errorBrush;
+            ToolTipService.SetToolTip(PackageNameTextBox, packageValid ? null : PackageNameHintTextBlock.Text);
+
+            // 3) 版本号
+            var version = VersionTextBox.Text.Trim();
+            bool versionValid;
+            if (string.IsNullOrWhiteSpace(version))
+            {
+                versionValid = false;
+                VersionHintTextBlock.Text = "版本号不能为空。";
+            }
+            else if (version.Length > 64)
+            {
+                versionValid = false;
+                VersionHintTextBlock.Text = "版本号过长（请≤64个字符）。";
+            }
+            else if (version.Any(c => char.IsControl(c) || VersionInvalidChars.Contains(c)))
+            {
+                versionValid = false;
+                VersionHintTextBlock.Text = "非法字符：禁止控制字符与路径符号 < > : \" / \\ | ? *。";
+            }
+            else
+            {
+                versionValid = true;
+                VersionHintTextBlock.Text =
+                    "显示版本（versionName），任意字符串，建议 x.y.z。禁止控制字符与路径非法符号。";
+            }
+            VersionHintTextBlock.Foreground = versionValid ? validBrush : errorBrush;
+            ToolTipService.SetToolTip(VersionTextBox, versionValid ? null : VersionHintTextBlock.Text);
+
+            if (!appNameValid) status = "应用名称不合法";
+            else if (!packageValid) status = "包名格式错误";
+            else if (!versionValid) status = "版本号不合法";
+            else status = "就绪";
+
+            _apkInputValidation = (appNameValid, packageValid, versionValid, status);
+        }
+
         private void UpdateStartPortingAvailability()
         {
+            ValidateApkInputs();
+
             if (_currentGameInfo is null)
             {
                 StartPortingButton.IsEnabled = false;
@@ -242,6 +376,15 @@ namespace GameMaker_Mobiler
             {
                 StartPortingButton.IsEnabled = false;
                 StatusTextBlock.Text = "YYC 编译，无法移植";
+                return;
+            }
+
+            if (!_apkInputValidation.AppNameValid ||
+                !_apkInputValidation.PackageValid ||
+                !_apkInputValidation.VersionValid)
+            {
+                StartPortingButton.IsEnabled = false;
+                StatusTextBlock.Text = _apkInputValidation.Status;
                 return;
             }
 
@@ -389,6 +532,21 @@ namespace GameMaker_Mobiler
                 return;
             }
 
+            ValidateApkInputs();
+            if (!_apkInputValidation.AppNameValid ||
+                !_apkInputValidation.PackageValid ||
+                !_apkInputValidation.VersionValid)
+            {
+                AddLog($"错误：{_apkInputValidation.Status}。请修正右侧 APK 打包设置中高亮的字段。", true);
+                MessageBox.Show(this,
+                    $"输入校验未通过：{_apkInputValidation.Status}\n\n"
+                    + "请查看每个输入框下方的红色提示文字进行修正。",
+                    "配置错误",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
             var appName = AppNameTextBox.Text.Trim();
             var invalidChars = Path.GetInvalidFileNameChars();
             var safeAppName = invalidChars.Aggregate(appName, (c, ch) => c.Replace(ch, '_'));
@@ -424,23 +582,6 @@ namespace GameMaker_Mobiler
 
             var packageName = PackageNameTextBox.Text.Trim();
             var version = VersionTextBox.Text.Trim();
-
-            if (string.IsNullOrWhiteSpace(appName))
-            {
-                AddLog("错误：应用名称不能为空。", true);
-                return;
-            }
-
-            if (!Regex.IsMatch(packageName, @"^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$"))
-            {
-                AddLog("错误：包名格式无效，例如 com.example.mygame。", true);
-                MessageBox.Show(this,
-                    "包名格式无效。\n\n请使用类似 com.example.mygame 的格式。",
-                    "配置错误",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
 
             StartPortingButton.IsEnabled = false;
             ResetButton.IsEnabled = false;
