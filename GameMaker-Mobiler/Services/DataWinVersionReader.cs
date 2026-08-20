@@ -17,6 +17,7 @@ public sealed record DataWinVersion(
     uint Build,
     byte BytecodeVersion,
     bool IsGameMaker2,
+    bool IsYyc,
     bool IsValid,
     string DisplayVersion,
     string RawGen8Version,
@@ -149,12 +150,14 @@ public static class DataWinVersionReader
             return Invalid;
 
         bool isGms2 = m >= 2;
+        bool isYyc = !allChunkNames.Contains("CODE");
         string displayVersion = FormatDisplayVersion(m, n, r, b, bytecodeVersion);
 
         return new DataWinVersion(
             Major: m, Minor: n, Release: r, Build: b,
             BytecodeVersion: bytecodeVersion,
             IsGameMaker2: isGms2,
+            IsYyc: isYyc,
             IsValid: true,
             DisplayVersion: displayVersion,
             RawGen8Version: rawGen8Display,
@@ -360,6 +363,7 @@ public static class DataWinVersionReader
         Major: 0, Minor: 0, Release: 0, Build: 0,
         BytecodeVersion: 0,
         IsGameMaker2: false,
+        IsYyc: false,
         IsValid: false,
             DisplayVersion: "Unknown",
             RawGen8Version: "-",
@@ -392,7 +396,7 @@ public static class DataWinVersionReader
             "Console.WriteLine(\"__GMM_VERSION__=\" + " +
             "Data.GeneralInfo.Major + \".\" + Data.GeneralInfo.Minor + \".\" + " +
             "Data.GeneralInfo.Release + \".\" + Data.GeneralInfo.Build + \"|\" + " +
-            "Data.GeneralInfo.BytecodeVersion + \"|\" + Data.IsGameMaker2());");
+            "Data.GeneralInfo.BytecodeVersion + \"|\" + Data.IsGameMaker2() + \"|\" + Data.IsYYC());");
 
         try
         {
@@ -444,7 +448,7 @@ public static class DataWinVersionReader
 
             string payload = line[(markerIndex + marker.Length)..].Trim();
             string[] parts = payload.Split('|');
-            if (parts.Length < 3)
+            if (parts.Length < 4)
                 return null;
 
             string[] versionParts = parts[0].Split('.');
@@ -454,7 +458,8 @@ public static class DataWinVersionReader
                 !uint.TryParse(versionParts[2], out uint release) ||
                 !uint.TryParse(versionParts[3], out uint build) ||
                 !byte.TryParse(parts[1], out byte bytecodeVersion) ||
-                !bool.TryParse(parts[2], out bool isGameMaker2))
+                !bool.TryParse(parts[2], out bool isGameMaker2) ||
+                !bool.TryParse(parts[3], out bool isYyc))
             {
                 return null;
             }
@@ -466,6 +471,7 @@ public static class DataWinVersionReader
                 Build: build,
                 BytecodeVersion: bytecodeVersion,
                 IsGameMaker2: isGameMaker2,
+                IsYyc: isYyc,
                 IsValid: true,
                 DisplayVersion: FormatDisplayVersion(major, minor, release, build, bytecodeVersion),
                 RawGen8Version: fallbackVersion.RawGen8Version,
@@ -478,9 +484,6 @@ public static class DataWinVersionReader
 
     private static string GetUtmtCliPath()
     {
-        return Path.GetFullPath(Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory,
-            "..", "..", "..", "..",
-            "Tools", "UTMT_CLI_v0.9.1.2-Windows", "UndertaleModCli.exe"));
+        return Path.Combine(RuntimePaths.ToolsDirectory, "UTMT_CLI_v0.9.1.2-Windows", "UndertaleModCli.exe");
     }
 }

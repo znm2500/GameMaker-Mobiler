@@ -8,6 +8,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -28,8 +29,7 @@ public class ApkBuilder
 
     public string FindTemplateApk(DataWinVersion version)
     {
-        var templatesDir = Path.Combine(_baseDir, "..", "..", "..", "..", "GMS2 APK");
-        templatesDir = Path.GetFullPath(templatesDir);
+        var templatesDir = RuntimePaths.TemplatesDirectory;
 
         if (!Directory.Exists(templatesDir))
             throw new DirectoryNotFoundException($"APK 模板目录不存在: {templatesDir}");
@@ -191,7 +191,7 @@ public class ApkBuilder
         bool isUteTemplate,
         CancellationToken cancellationToken)
     {
-        var toolsDir = Path.GetFullPath(Path.Combine(_baseDir, "..", "..", "..", "..", "Tools"));
+        var toolsDir = RuntimePaths.ToolsDirectory;
         var apktoolJar = Path.Combine(toolsDir, "apktool_3.0.3.jar");
         var javaExe = PreparePortableJava(toolsDir);
 
@@ -217,13 +217,10 @@ public class ApkBuilder
             new[] { "d", "-f", "-o", decodedDirectory, workingApk },
             cancellationToken);
 
-        PatchDecodedManifest(
-            Path.Combine(decodedDirectory, "AndroidManifest.xml"),
-            "com.ESG.MobileByMuBai",
-            packageName,
-            version,
-            appName);
-        PatchDecodedSmali(decodedDirectory, "com.ESG.MobileByMuBai", packageName);
+        var manifestPath = Path.Combine(decodedDirectory, "AndroidManifest.xml");
+        var originalPackages = ReadDecodedPackageNames(manifestPath);
+        PatchDecodedManifest(manifestPath, originalPackages, packageName, version, appName);
+        PatchDecodedPackageNames(decodedDirectory, originalPackages, packageName);
 
         var assetsDirectory = Path.Combine(decodedDirectory, "assets");
         Directory.CreateDirectory(assetsDirectory);
@@ -277,17 +274,20 @@ public class ApkBuilder
 
     private static void PatchDecodedManifest(
         string manifestPath,
-        string originalPackageName,
+        IReadOnlyCollection<string> originalPackages,
         string packageName,
         string version,
         string appName)
     {
         var manifest = File.ReadAllText(manifestPath, Encoding.UTF8);
-        manifest = manifest.Replace(originalPackageName, packageName, StringComparison.Ordinal);
-        manifest = manifest.Replace(
-            originalPackageName.Replace('.', '/'),
-            packageName.Replace('.', '/'),
-            StringComparison.Ordinal);
+        foreach (var originalPackage in originalPackages.OrderByDescending(value => value.Length))
+        {
+            manifest = manifest.Replace(originalPackage, packageName, StringComparison.Ordinal);
+            manifest = manifest.Replace(
+                originalPackage.Replace('.', '/'),
+                packageName.Replace('.', '/'),
+                StringComparison.Ordinal);
+        }
         manifest = Regex.Replace(
             manifest,
             "(\\bpackage\\s*=\\s*[\"'])[^\"']*([\"'])",
@@ -308,13 +308,22 @@ public class ApkBuilder
             return;
         }
 
-        var strings = File.ReadAllText(stringsPath, Encoding.UTF8);
-        strings = Regex.Replace(
-            strings,
-            "(<string\\s+name\\s*=\\s*[\"']app_name[\"'][^>]*>).*?(</string>)",
-            $"$1{System.Security.SecurityElement.Escape(appName)}$2",
-            RegexOptions.CultureInvariant | RegexOptions.Singleline);
-        File.WriteAllText(stringsPath, strings, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        var stringsDocument = XDocument.Load(stringsPath, LoadOptions.PreserveWhitespace);
+        var appNameElement = stringsDocument
+            .Descendants("string")
+            .FirstOrDefault(element =>
+                string.Equals(
+                    (string?)element.Attribute("name"),
+                    "app_name",
+                    StringComparison.Ordinal));
+
+        if (appNameElement != null)
+        {
+            appNameElement.Value = appName;
+            stringsDocument.Save(
+                stringsPath,
+                SaveOptions.DisableFormatting);
+        }
     }
 
     private static string MatchEvaluatorEscapeReplacement(string value)
@@ -322,22 +331,17 @@ public class ApkBuilder
         return value.Replace("$", "$$", StringComparison.Ordinal);
     }
 
-    private static void PatchDecodedSmali(
+    private static void PatchDecodedPackageNames(
         string decodedDirectory,
-        string originalPackageName,
+        IReadOnlyCollection<string> originalPackages,
         string packageName)
     {
-        var originalSlash = originalPackageName.Replace('.', '/');
-        var packageSlash = packageName.Replace('.', '/');
-
         foreach (var smaliDirectory in Directory.GetDirectories(decodedDirectory, "smali*", SearchOption.TopDirectoryOnly))
         {
             foreach (var file in Directory.EnumerateFiles(smaliDirectory, "*.smali", SearchOption.AllDirectories))
             {
                 var text = File.ReadAllText(file, Encoding.UTF8);
-                var patched = text
-                    .Replace(originalSlash, packageSlash, StringComparison.Ordinal)
-                    .Replace(originalPackageName, packageName, StringComparison.Ordinal);
+                var patched = ReplacePackageReferences(text, originalPackages, packageName);
                 if (!string.Equals(text, patched, StringComparison.Ordinal))
                 {
                     File.WriteAllText(file, patched, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
@@ -345,30 +349,102 @@ public class ApkBuilder
             }
         }
 
-        var packageDirectory = originalSlash
-            .Split('/', StringSplitOptions.RemoveEmptyEntries)
-            .Aggregate(decodedDirectory, Path.Combine);
-        var renamedPackageDirectory = packageSlash
-            .Split('/', StringSplitOptions.RemoveEmptyEntries)
-            .Aggregate(decodedDirectory, Path.Combine);
-
-        if (Directory.Exists(packageDirectory) &&
-            !string.Equals(packageDirectory, renamedPackageDirectory, StringComparison.OrdinalIgnoreCase))
+        foreach (var originalPackage in originalPackages.OrderByDescending(value => value.Length))
         {
-            Directory.Move(packageDirectory, renamedPackageDirectory);
+            var originalSlash = originalPackage.Replace('.', '/');
+            var packageDirectory = originalSlash
+                .Split('/', StringSplitOptions.RemoveEmptyEntries)
+                .Aggregate(decodedDirectory, Path.Combine);
+            var renamedPackageDirectory = packageName
+                .Replace('.', '/')
+                .Split('/', StringSplitOptions.RemoveEmptyEntries)
+                .Aggregate(decodedDirectory, Path.Combine);
+
+            if (Directory.Exists(packageDirectory) &&
+                !string.Equals(packageDirectory, renamedPackageDirectory, StringComparison.OrdinalIgnoreCase))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(renamedPackageDirectory)!);
+                if (Directory.Exists(renamedPackageDirectory))
+                {
+                    CopyDirectoryVerbatim(packageDirectory, renamedPackageDirectory);
+                    Directory.Delete(packageDirectory, recursive: true);
+                }
+                else
+                {
+                    Directory.Move(packageDirectory, renamedPackageDirectory);
+                }
+            }
         }
 
         foreach (var xmlFile in Directory.EnumerateFiles(decodedDirectory, "*.xml", SearchOption.AllDirectories))
         {
             var text = File.ReadAllText(xmlFile, Encoding.UTF8);
-            var patched = text
-                .Replace(originalPackageName, packageName, StringComparison.Ordinal)
-                .Replace(originalSlash, packageSlash, StringComparison.Ordinal);
+            var patched = ReplacePackageReferences(text, originalPackages, packageName);
             if (!string.Equals(text, patched, StringComparison.Ordinal))
             {
                 File.WriteAllText(xmlFile, patched, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
             }
         }
+    }
+
+    private static string ReplacePackageReferences(
+        string text,
+        IReadOnlyCollection<string> originalPackages,
+        string packageName)
+    {
+        foreach (var originalPackage in originalPackages.OrderByDescending(value => value.Length))
+        {
+            text = text.Replace(originalPackage, packageName, StringComparison.Ordinal);
+            text = text.Replace(
+                originalPackage.Replace('.', '/'),
+                packageName.Replace('.', '/'),
+                StringComparison.Ordinal);
+        }
+
+        return text;
+    }
+
+    private static IReadOnlyCollection<string> ReadDecodedPackageNames(string manifestPath)
+    {
+        var manifest = File.ReadAllText(manifestPath, Encoding.UTF8);
+        var packages = new HashSet<string>(StringComparer.Ordinal);
+
+        var packageMatch = Regex.Match(
+            manifest,
+            "\\bpackage\\s*=\\s*[\"']([^\"']+)[\"']",
+            RegexOptions.CultureInvariant);
+        if (packageMatch.Success)
+        {
+            packages.Add(packageMatch.Groups[1].Value);
+        }
+
+        foreach (Match match in Regex.Matches(
+                     manifest,
+                     "<(?:application|activity)\\b[^>]*?android:name\\s*=\\s*[\"']([^\"']+)[\"']",
+                     RegexOptions.CultureInvariant | RegexOptions.Singleline))
+        {
+            var className = match.Groups[1].Value;
+            if (className.StartsWith(".", StringComparison.Ordinal) ||
+                !className.Contains('.', StringComparison.Ordinal) ||
+                className.StartsWith("android.", StringComparison.Ordinal) ||
+                className.StartsWith("androidx.", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var lastDot = className.LastIndexOf('.');
+            if (lastDot > 0 && className.IndexOf('.') > 0)
+            {
+                packages.Add(className[..lastDot]);
+            }
+        }
+
+        if (packages.Count == 0)
+        {
+            throw new InvalidDataException("无法从模板 AndroidManifest.xml 读取原包名。");
+        }
+
+        return packages;
     }
 
     private async Task RunJavaToolAsync(
@@ -1895,7 +1971,10 @@ public class ApkBuilder
                     using var newStream = newEntry.Open();
 
                 if (entry.FullName.EndsWith("ic_launcher.png", StringComparison.Ordinal) ||
-                    entry.FullName.EndsWith("icon.png", StringComparison.Ordinal))
+                    entry.FullName.EndsWith("ic_launcher_round.png", StringComparison.Ordinal) ||
+                    entry.FullName.EndsWith("icon.png", StringComparison.Ordinal) ||
+                    entry.FullName.EndsWith("adaptive_icon.png", StringComparison.Ordinal) ||
+                    entry.FullName.EndsWith("icon.xml", StringComparison.Ordinal))
                 {
                     newStream.Write(iconData, 0, iconData.Length);
                 }
@@ -1968,12 +2047,7 @@ public class ApkBuilder
 
     private async Task ZipAlignApkAsync(string apkPath, CancellationToken cancellationToken)
     {
-        var zipalignExe = Path.Combine(
-            _baseDir,
-            "..", "..", "..", "..",
-            "Tools",
-            "zipalign.exe");
-        zipalignExe = Path.GetFullPath(zipalignExe);
+        var zipalignExe = Path.Combine(RuntimePaths.ToolsDirectory, "zipalign.exe");
 
         if (!File.Exists(zipalignExe))
         {
@@ -2036,8 +2110,7 @@ public class ApkBuilder
 
     private async Task SignApkAsync(string apkPath, CancellationToken cancellationToken)
     {
-        var toolsDir = Path.Combine(_baseDir, "..", "..", "..", "..", "Tools");
-        var toolsDirFull = Path.GetFullPath(toolsDir);
+        var toolsDirFull = RuntimePaths.ToolsDirectory;
 
         var javaExe = PreparePortableJava(toolsDirFull);
         var apksignerJar = Path.Combine(toolsDirFull, "apksigner.jar");
@@ -2212,3 +2285,4 @@ public sealed class TempDirectory : IDisposable
         catch { }
     }
 }
+

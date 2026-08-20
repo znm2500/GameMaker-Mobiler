@@ -179,6 +179,8 @@ namespace GameMaker_Mobiler
                 SourcePathTextBox.Text = sourceDirectory;
                 DataWinPathTextBlock.Text = $"data.win 路径：{dataWinPath}";
                 GameVersionTextBlock.Text = "版本：检测中...";
+                StartPortingButton.IsEnabled = false;
+                StatusTextBlock.Text = "检测 data.win...";
             });
 
             AddLog($"已选择目录：{sourceDirectory}");
@@ -199,11 +201,16 @@ namespace GameMaker_Mobiler
                 UteStatusTextBlock.Foreground = isUte
                     ? (Brush)Application.Current.FindResource("SuccessBrush")
                     : (Brush)Application.Current.FindResource("TextMutedBrush");
+
+                UpdateStartPortingAvailability();
             });
 
             if (version.IsValid)
             {
                 AddLog($"版本检测成功：{version.DisplayVersion} (Major={version.Major}, Minor={version.Minor}, Release={version.Release}, Build={version.Build}, Bytecode={version.BytecodeVersion})");
+                AddLog(version.IsYyc
+                    ? "  · 编译方式：YYC（不支持植入脚本，开始移植已禁用）"
+                    : "  · 编译方式：VM");
                 AddLog($"  · 原始 GEN8 版本：{version.RawGen8Version}");
                 AddLog($"  · 特征 chunk 下限：{version.ChunkNameFloor}");
                 AddLog($"  · 结构级下限：{version.StructuralFloor}");
@@ -213,6 +220,33 @@ namespace GameMaker_Mobiler
             {
                 AddLog("版本检测失败：未能识别 data.win 对应的 GMS 版本。", true);
             }
+        }
+
+        private void UpdateStartPortingAvailability()
+        {
+            if (_currentGameInfo is null)
+            {
+                StartPortingButton.IsEnabled = false;
+                StatusTextBlock.Text = "就绪";
+                return;
+            }
+
+            if (!_currentGameInfo.Version.IsValid)
+            {
+                StartPortingButton.IsEnabled = false;
+                StatusTextBlock.Text = "版本未知，无法移植";
+                return;
+            }
+
+            if (_currentGameInfo.Version.IsYyc)
+            {
+                StartPortingButton.IsEnabled = false;
+                StatusTextBlock.Text = "YYC 编译，无法移植";
+                return;
+            }
+
+            StartPortingButton.IsEnabled = true;
+            StatusTextBlock.Text = "就绪";
         }
 
         private static string? ResolveDataWinPath(string selectedPath)
@@ -346,6 +380,12 @@ namespace GameMaker_Mobiler
             if (!_currentGameInfo.Version.IsValid)
             {
                 AddLog("错误：版本尚未识别。", true);
+                return;
+            }
+
+            if (_currentGameInfo.Version.IsYyc)
+            {
+                AddLog("错误：检测到 YYC 编译，当前脚本植入流程不支持移植。", true);
                 return;
             }
 
@@ -516,7 +556,7 @@ namespace GameMaker_Mobiler
 
                 await Dispatcher.InvokeAsync(() =>
                 {
-                    StartPortingButton.IsEnabled = true;
+                    UpdateStartPortingAvailability();
                     ResetButton.IsEnabled = true;
                     CancelButton.IsEnabled = false;
                 });
@@ -535,6 +575,7 @@ namespace GameMaker_Mobiler
             GameVersionTextBlock.Text = "版本：未检测";
             UteStatusTextBlock.Text = "UTE 模板状态：等待检测...";
             UteStatusTextBlock.Foreground = (Brush)FindResource("TextMutedBrush");
+            StartPortingButton.IsEnabled = false;
 
             AppNameTextBox.Text = "MyGame";
             PackageNameTextBox.Text = "com.example.mygame";

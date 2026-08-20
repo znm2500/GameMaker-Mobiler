@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="GameMaker-Mobiler"
+        Title="GameMaker Mobiler"
         Icon="/GameMaker-Mobiler;component/Assets/AppIcon.png"
         Background="{DynamicResource WindowBackgroundBrush}"
         MinHeight="720"
@@ -44,7 +44,7 @@
 
                 <StackPanel Grid.Column="1"
                         VerticalAlignment="Center">
-                    <TextBlock Text="GameMaker-Mobiler"
+                    <TextBlock Text="GameMaker Mobiler"
                                FontSize="25"
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}"/>
@@ -338,6 +338,7 @@
                             FontSize="14"
                             FontWeight="SemiBold"
                             Click="StartPortingButton_Click"
+                            IsEnabled="False"
                             VerticalAlignment="Center"
                             Margin="0"
                             Style="{StaticResource PrimaryActionButtonStyle}"/>

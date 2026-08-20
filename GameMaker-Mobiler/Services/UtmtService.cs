@@ -362,42 +362,27 @@ public sealed class UtmtService
 
     private static string GetUtmtCliPath()
     {
-        return Path.GetFullPath(Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory,
-            "..", "..", "..", "..",
-            "Tools", "UTMT_CLI_v0.9.1.2-Windows", "UndertaleModCli.exe"));
+        return Path.Combine(RuntimePaths.ToolsDirectory, "UTMT_CLI_v0.9.1.2-Windows", "UndertaleModCli.exe");
     }
 
     private static string GetIntegrationScriptPath()
     {
-        return Path.GetFullPath(Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory,
-            "..", "..", "..", "..",
-            "Tools", "移植脚本", "安卓脚本v2.0", "Mobile集成脚本.csx"));
+        return Path.Combine(RuntimePaths.ToolsDirectory, "移植脚本", "安卓脚本v2.0", "Mobile集成脚本.csx");
     }
 
     private static string GetMobileContTemplatePath()
     {
-        return Path.GetFullPath(Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory,
-            "..", "..", "..", "..",
-            "Tools", "移植脚本", "安卓脚本v2.0", "MobileScript", "mobilecont", "gml_Object_mb_cont_mobile_Create_0.gml"));
+        return Path.Combine(RuntimePaths.ToolsDirectory, "移植脚本", "安卓脚本v2.0", "MobileScript", "mobilecont", "gml_Object_mb_cont_mobile_Create_0.gml");
     }
 
     private static string GetUteRepairScriptPath()
     {
-        return Path.GetFullPath(Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory,
-            "..", "..", "..", "..",
-            "Tools", "移植脚本", "Ute 修复脚本", "Ute控制台和路径修复.csx"));
+        return Path.Combine(RuntimePaths.ToolsDirectory, "移植脚本", "Ute 修复脚本", "Ute控制台和路径修复.csx");
     }
 
     private static string GetUteRepairScriptPathForOldVersion()
     {
-        return Path.GetFullPath(Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory,
-            "..", "..", "..", "..",
-            "Tools", "移植脚本", "Ute 修复脚本", "低于GMS 2.3.0的脚本", "旧版Ute控制台和路径修复.csx"));
+        return Path.Combine(RuntimePaths.ToolsDirectory, "移植脚本", "Ute 修复脚本", "低于GMS 2.3.0的脚本", "旧版Ute控制台和路径修复.csx");
     }
 
     public static string GetUteRepairScriptPathByVersion(int majorVersion, int minorVersion)

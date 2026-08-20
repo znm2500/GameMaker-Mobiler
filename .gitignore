@@ -16,6 +16,7 @@ x86/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+build-check/
 
 # Visual Studio cache
 .vs/
