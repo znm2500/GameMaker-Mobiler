@@ -49,3 +49,13 @@ packages/
 
 # Rerun cache
 *.rerun
+
+# Large binaries - never upload
+*.exe
+*.apk
+*.msi
+
+# Tools (large)
+Tools/jre-portable/
+Tools/UTMT_CLI_v0.9.1.2-Windows/
+GMS2 APK/
