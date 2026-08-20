@@ -260,8 +260,7 @@ public class ApkBuilder
                 continue;
             }
 
-            var compression = entry.FullName.StartsWith("lib/", StringComparison.OrdinalIgnoreCase) ||
-                              string.Equals(entry.FullName, "resources.arsc", StringComparison.OrdinalIgnoreCase)
+            var compression = string.Equals(entry.FullName, "resources.arsc", StringComparison.OrdinalIgnoreCase)
                 ? CompressionLevel.NoCompression
                 : CompressionLevel.Optimal;
             var newEntry = output.CreateEntry(entry.FullName, compression);
